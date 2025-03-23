@@ -1,8 +1,13 @@
 package main
 
 import (
+	"sync/atomic"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
+	"fyne.io/fyne/v2/canvas"
+	"fyne.io/fyne/v2/widget"
+	"gocv.io/x/gocv"
 )
 
 /**
@@ -11,11 +16,20 @@ import (
  * you should probably start from here.
  */
 type App struct {
-	Window      fyne.Window
-	MainContent fyne.CanvasObject
-
+	Window        fyne.Window
+	MainContent   fyne.CanvasObject
 	ContentCanvas fyne.CanvasObject
-	LeftCanvas    fyne.CanvasObject
+	ControlPanel  fyne.CanvasObject
+	VideoCanvas   *canvas.Raster
+	StatusLabel   *widget.Label
+	DeviceSelect  *widget.Select
+	DetailsText   *widget.Label
+
+	Video *gocv.VideoCapture
+
+	CurrentImage  *atomic.Value
+	StopCurrent   chan bool
+	CameraDevices []CameraDevice
 }
 
 func main() {
@@ -23,18 +37,14 @@ func main() {
 	w := a.NewWindow("SmartSign™")
 
 	app := &App{
-		Window: w,
+		Window:       w,
+		CurrentImage: &atomic.Value{},
+		StopCurrent:  make(chan bool),
 	}
 
-	app.ContentCanvas = HelloWorld() // add content to centercanvas
-	app.LeftCanvas = LeftPanel()     // add content to leftcanvas
-
-	content := CreateLayout(app) // define the layout (we probably want couple of these. (one for debugging and one for sign.))
-	app.MainContent = content
-
-	w.SetContent(content)
-
+	SetupUI(app)
+	w.Resize(fyne.NewSize(1280, 720))
 	w.Show()
-
+	go DetectCameras(app)
 	a.Run()
 }

@@ -2,7 +2,10 @@ module bip
 
 go 1.23.7
 
-require fyne.io/fyne/v2 v2.5.5
+require (
+	fyne.io/fyne/v2 v2.5.5
+	gocv.io/x/gocv v0.41.0
+)
 
 require (
 	fyne.io/systray v1.11.0 // indirect

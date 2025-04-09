@@ -46,12 +46,6 @@ func FindVideoDevices() []string {
  * @param *app
  */
 func DetectCameras(app *App) {
-
-	if app.StopCurrent != nil {
-		close(app.StopCurrent)
-	}
-	app.StopCurrent = make(chan bool)
-
 	app.StatusLabel.SetText("Scanning for cameras...")
 	app.StatusLabel.Refresh()
 
@@ -134,8 +128,11 @@ func startStream(app *App, deviceID int) {
 
 	if app.StopCurrent != nil {
 		close(app.StopCurrent)
+		app.StopCurrent = nil // reset the kill signal
+		time.Sleep(100 * time.Millisecond)
 	}
 	app.StopCurrent = make(chan bool)
+	stopChan := app.StopCurrent
 
 	// if problems with opening video, try different backend. V4L2 works for now.
 	cam, err := gocv.VideoCaptureFileWithAPI(app.CameraDevices[deviceID].Path, gocv.VideoCaptureV4L2)
@@ -152,7 +149,8 @@ func startStream(app *App, deviceID int) {
 
 		for {
 			select {
-			case <-app.StopCurrent:
+			case <-stopChan:
+				app.StatusLabel.SetText("Stopping the video stream.")
 				return
 			default:
 				if ok := cam.Read(&frame); ok && !frame.Empty() {

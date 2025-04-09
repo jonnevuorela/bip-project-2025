@@ -15,12 +15,17 @@ import (
  * @param *app
  */
 func SetupUI(app *App) {
+	var aspectRatio float32 = 16.0 / 9.0
+	videoWidth := 1000
 	app.VideoCanvas = canvas.NewRaster(func(w, h int) image.Image {
 		if img := app.CurrentImage.Load(); img != nil {
 			return img.(image.Image)
 		}
-		return image.NewRGBA(image.Rect(0, 0, w, h))
+
+		return image.NewRGBA(image.Rect(0, 0, w, int(float32(w)/aspectRatio)))
 	})
+
+	app.VideoCanvas.SetMinSize(fyne.NewSize(float32(videoWidth), float32(float32(videoWidth)/aspectRatio)))
 
 	app.StatusLabel = widget.NewLabel("Ready")
 	app.DeviceSelect = widget.NewSelect(nil, nil)
@@ -35,9 +40,19 @@ func SetupUI(app *App) {
 		refreshBtn,
 		app.StatusLabel,
 	)
+	dataContainer := container.NewVBox(
+		widget.NewLabel("Data"),
+	)
 
-	split := container.NewHSplit(controls, app.VideoCanvas)
+	videoContainer := container.NewCenter(app.VideoCanvas)
+	content := container.NewVSplit(videoContainer, dataContainer)
+
+	split := container.NewHSplit(controls, content)
 	split.Offset = 0.2
+
+	app.Window.Resize(fyne.NewSize(1280, 720))
+	app.Window.SetFixedSize(false)
+
 	app.Window.SetContent(split)
 }
 

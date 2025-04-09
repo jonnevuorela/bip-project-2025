@@ -46,35 +46,65 @@ func FindVideoDevices() []string {
  * @param *app
  */
 func DetectCameras(app *App) {
+
+	if app.StopCurrent != nil {
+		close(app.StopCurrent)
+	}
+	app.StopCurrent = make(chan bool)
+
 	app.StatusLabel.SetText("Scanning for cameras...")
 	app.StatusLabel.Refresh()
 
 	devices := FindVideoDevices()
 	var cameras []CameraDevice
 
-	for idx, path := range devices {
-		name := fmt.Sprintf("Camera %d", idx)
-		cmd := exec.Command("v4l2-ctl", "-d", path, "-D")
-		if output, err := cmd.Output(); err == nil {
-			if strings.Contains(string(output), "Camera") {
-				name = strings.TrimPrefix(string(output), "Driver Info:\n\t")
-			}
-		}
+	for i := 0; i < len(devices); i++ {
+		fmt.Println(i)
+		fmt.Println(devices[i])
 
-		cam, err := gocv.VideoCaptureFile(path)
-		if err != nil {
+		// probe the device with ffmpeg to exit early.
+		// we have to do this, beacause gocv will hang
+		// upon trying to handle errors from v4l2-ctl output.
+		fmt.Printf("Probing device %d: %s\n", i, devices[i])
+		if err := probeDeviceWithFFmpeg(devices[i]); err != nil {
+			fmt.Println(err)
 			continue
 		}
 
+		cmd := exec.Command("v4l2-ctl", "-d", devices[i], "--info")
+		output, err := cmd.Output()
+		if err != nil {
+			fmt.Println("Error retrieving info for device %s: %v\n", devices[i], err)
+			continue
+		}
+
+		var name string
+		for _, line := range strings.Split(string(output), "\n") {
+			if strings.Contains(line, "Card type") {
+				name = strings.TrimSpace(strings.Split(line, ":")[1])
+				break
+			}
+		}
+
+		// try to open device
+		// if problems with opening video, try different backend. V4L2 works for now.
+		cam, err := gocv.VideoCaptureFileWithAPI(devices[i], gocv.VideoCaptureV4L2)
+		if err != nil {
+			fmt.Printf("Error opening video device %s: %v\n", devices[i], err)
+			continue
+		}
+
+		// get just single frame to confirm that device works
 		mat := gocv.NewMat()
-		if ok := cam.Read(&mat); !ok {
+		if ok := cam.Read(&mat); !ok || mat.Empty() {
+			fmt.Printf("Device %s is not providing frames or is incompatible.\n", devices[i])
 			cam.Close()
 			continue
 		}
 
 		cameras = append(cameras, CameraDevice{
-			ID:     idx,
-			Path:   path,
+			ID:     i,
+			Path:   devices[i],
 			Name:   name,
 			Width:  mat.Cols(),
 			Height: mat.Rows(),
@@ -87,6 +117,8 @@ func DetectCameras(app *App) {
 
 	app.CameraDevices = cameras
 	UpdateDeviceList(app)
+	app.StatusLabel.SetText(fmt.Sprintf("Camera detection completed"))
+	time.Sleep(1000 * time.Millisecond)
 	app.StatusLabel.SetText(fmt.Sprintf("Found %d cameras", len(cameras)))
 	app.StatusLabel.Refresh()
 }
@@ -105,7 +137,9 @@ func startStream(app *App, deviceID int) {
 	}
 	app.StopCurrent = make(chan bool)
 
-	cam, err := gocv.VideoCaptureFile(app.CameraDevices[deviceID].Path)
+	// if problems with opening video, try different backend. V4L2 works for now.
+	cam, err := gocv.VideoCaptureFileWithAPI(app.CameraDevices[deviceID].Path, gocv.VideoCaptureV4L2)
+
 	if err != nil {
 		app.StatusLabel.SetText("Error opening device")
 		return
@@ -130,4 +164,20 @@ func startStream(app *App, deviceID int) {
 			}
 		}
 	}()
+}
+
+/**
+ * Probe devices stdout with ffmpeg without getting actual output from device.
+ * @param device string
+ * @return error
+ */
+func probeDeviceWithFFmpeg(device string) error {
+	cmd := exec.Command("ffmpeg", "-f", "v4l2", "-i", device, "-t", "1", "-vframes", "1", "-f", "null", "-")
+	cmd.Stdout = nil // suppress stdout
+	cmd.Stderr = nil // suppress stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("Device %s failed probe with ffmpeg: %v", device, err)
+	}
+	return nil
 }

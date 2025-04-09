@@ -154,6 +154,7 @@ func startStream(app *App, deviceID int) {
 				return
 			default:
 				if ok := cam.Read(&frame); ok && !frame.Empty() {
+					app.StatusLabel.SetText("jamming")
 					img, _ := frame.ToImage()
 					app.CurrentImage.Store(img)
 					RefreshCanvas(app)

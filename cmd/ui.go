@@ -1,9 +1,7 @@
 package main
 
 import (
-	"fmt"
 	"image"
-	"strings"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -45,14 +43,15 @@ func SetupUI(app *App) {
 
 func UpdateDeviceList(app *App) {
 	options := make([]string, len(app.CameraDevices))
-	for i, cam := range app.CameraDevices {
-		options[i] = fmt.Sprintf("%s (%dx%d)", cam.Name, cam.Width, cam.Height)
-	}
 
+	for i := 0; i < len(app.CameraDevices); i++ {
+		options[i] = app.CameraDevices[i].Name
+	}
 	app.DeviceSelect.Options = options
 	app.DeviceSelect.OnChanged = func(selected string) {
-		for i, cam := range app.CameraDevices {
-			if strings.HasPrefix(selected, cam.Name) {
+		for i := 0; i < len(app.CameraDevices); i++ {
+			option := app.CameraDevices[i].Name
+			if selected == option {
 				startStream(app, i)
 				break
 			}

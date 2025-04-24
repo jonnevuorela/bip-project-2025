@@ -154,9 +154,22 @@ func startStream(app *App, deviceID int) {
 				return
 			default:
 				if ok := cam.Read(&frame); ok && !frame.Empty() {
-					app.StatusLabel.SetText("jamming")
-					img, _ := frame.ToImage()
+					// Process frame with YOLO
+					processedFrame, detections := ProcessFrame(frame)
+
+					// Update status with detection information
+					if len(detections) > 0 {
+						app.StatusLabel.SetText(fmt.Sprintf("Detected %d objects", len(detections)))
+					} else {
+						app.StatusLabel.SetText("Streaming")
+					}
+
+					// Convert to image for display
+					img, _ := processedFrame.ToImage()
 					app.CurrentImage.Store(img)
+
+					// Clean up
+					processedFrame.Close()
 					RefreshCanvas(app)
 				}
 				time.Sleep(33 * time.Millisecond) // ~30 FPS

@@ -41,7 +41,8 @@ func SetupUI(app *App) {
 		app.StatusLabel,
 	)
 	dataContainer := container.NewVBox(
-		widget.NewLabel("Data"),
+		widget.NewLabel("Detections:"),
+		app.DetailsText,
 	)
 
 	videoContainer := container.NewCenter(app.VideoCanvas)

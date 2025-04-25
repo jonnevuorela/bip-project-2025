@@ -2,6 +2,8 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 	"os"
 	"os/exec"
 	"strings"
@@ -192,4 +194,180 @@ func probeDeviceWithFFmpeg(device string) error {
 		return fmt.Errorf("Device %s failed probe with ffmpeg: %v", device, err)
 	}
 	return nil
+}
+
+func processFrameForDetection(frame gocv.Mat, app *App) {
+	if app.Detector == nil {
+		return
+	}
+
+	detector, ok := app.Detector.(*AccidentModel)
+	if !ok {
+		fmt.Println("Error: Detector is not correct type")
+		return
+	}
+	frameCopy := frame.Clone()
+	defer frameCopy.Close()
+
+	blob := gocv.BlobFromImage(
+		frameCopy,
+		1.0/255.0,
+		// should always match the training dimensions
+		image.Pt(640, 640),
+		gocv.NewScalar(0, 0, 0, 0),
+		true,
+		false,
+	)
+	defer blob.Close()
+
+	detector.Net.SetInput(blob, "images")
+
+	output := detector.Net.Forward("output0")
+	defer output.Close()
+
+	boxes, confidences, classIds := processOutput(output, frame.Cols(), frame.Rows())
+
+	indices := performNMS(boxes, confidences)
+
+	for _, idx := range indices {
+		if idx >= len(boxes) || idx >= len(confidences) || idx >= len(classIds) {
+			fmt.Print("Warning: Invalid detection index: %d", idx)
+			continue
+		}
+
+		box := boxes[idx]
+		classId := classIds[idx]
+		confidence := confidences[idx]
+
+		className := "unknown"
+		if classId >= 0 && classId < len(detector.ClassNames) {
+			className = detector.ClassNames[classId]
+		} else {
+			fmt.Print("Warning: ClassId %d is out of bounds for array with %d elements", classId, len(detector.ClassNames))
+		}
+
+		gocv.Rectangle(&frame, box, color.RGBA{0, 255, 0, 255}, 2)
+		label := fmt.Sprintf("%s: %.2f%%", className, confidence*100)
+
+		yPos := box.Min.Y - 10
+		if yPos < 10 {
+			yPos = box.Min.Y + 20
+		}
+		gocv.PutText(&frame, label,
+			image.Pt(box.Min.X, yPos),
+			gocv.FontHersheyPlain, 0.5,
+			color.RGBA{0, 255, 0, 255}, 2)
+	}
+
+}
+
+func processOutput(out gocv.Mat, frameWidth, frameHeight int) ([]image.Rectangle, []float32, []int) {
+	var boxes []image.Rectangle
+	var confidences []float32
+	var classIds []int
+
+	confThreshold := float32(0.4)
+
+	numRows := out.Rows()
+	numCols := out.Cols()
+	fmt.Printf("YOLOv5 output shape: %d x %d\n", numRows, numCols)
+
+	func() {
+		defer func() {
+			if r := recover(); r != nil {
+				fmt.Printf("Recovered: %v\n", r)
+			}
+		}()
+
+		numClasses := 1
+		//boxSize := 5 + numClasses
+
+		for i := 0; i < numRows; i++ {
+			confidence := float32(out.GetFloatAt(i, 4))
+
+			if confidence >= confThreshold {
+				maxScore := float32(0)
+				classId := 0
+
+				for c := 0; c < numClasses; c++ {
+					score := float32(out.GetFloatAt(i, 5+c))
+					if score > maxScore {
+						maxScore = score
+						classId = c
+					}
+				}
+
+				if maxScore >= confThreshold {
+					x := float32(out.GetFloatAt(i, 0))
+					y := float32(out.GetFloatAt(i, 1))
+					w := float32(out.GetFloatAt(i, 2))
+					h := float32(out.GetFloatAt(i, 3))
+
+					left := int((x - w/2) * float32(frameWidth))
+					top := int((y - h/2) * float32(frameHeight))
+					right := int((x + w/2) * float32(frameWidth))
+					bottom := int((y + h/2) * float32(frameHeight))
+
+					boxes = append(boxes, image.Rect(left, top, right, bottom))
+					confidences = append(confidences, confidence*maxScore)
+					classIds = append(classIds, classId)
+				}
+			}
+		}
+	}()
+
+	fmt.Printf("Found %d detections\n", len(boxes))
+	return boxes, confidences, classIds
+}
+func performNMS(boxes []image.Rectangle, confidences []float32) []int {
+	if len(boxes) == 0 {
+		return []int{}
+	}
+
+	indices := make([]int, len(boxes))
+	for i := range indices {
+		indices[i] = i
+	}
+
+	for i := 0; i < len(indices)-1; i++ {
+		for j := i + 1; j < len(indices); j++ {
+			if confidences[indices[i]] < confidences[indices[j]] {
+				indices[i], indices[j] = indices[j], indices[i]
+			}
+		}
+	}
+
+	nmsThreshold := 0.4
+
+	kept := make([]int, 0)
+	for len(indices) > 0 {
+		idx := indices[0]
+		kept = append(kept, idx)
+
+		remainder := make([]int, 0)
+		for _, otherIdx := range indices[1:] {
+			if calculateIoU(boxes[idx], boxes[otherIdx]) <= nmsThreshold {
+				remainder = append(remainder, otherIdx)
+			}
+		}
+
+		indices = remainder
+	}
+
+	return kept
+}
+
+func calculateIoU(boxA, boxB image.Rectangle) float64 {
+	intersection := boxA.Intersect(boxB)
+	intersectionArea := intersection.Dx() * intersection.Dy()
+
+	if intersectionArea <= 0 {
+		return 0.0
+	}
+
+	boxAArea := boxA.Dx() * boxA.Dy()
+	boxBArea := boxB.Dx() * boxB.Dy()
+	unionArea := boxAArea + boxBArea - intersectionArea
+
+	return float64(intersectionArea) / float64(unionArea)
 }

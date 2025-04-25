@@ -16,6 +16,7 @@ import (
  * you should probably start from here.
  */
 type App struct {
+	// UI
 	Window        fyne.Window
 	MainContent   fyne.CanvasObject
 	ContentCanvas fyne.CanvasObject
@@ -25,21 +26,27 @@ type App struct {
 	DeviceSelect  *widget.Select
 	DetailsText   *widget.Label
 
-	Video *gocv.VideoCapture
-
+	// Video
 	CurrentImage  *atomic.Value
 	StopCurrent   chan bool
 	CameraDevices []CameraDevice
+	Video         *gocv.VideoCapture
+
+	// Detection
+	Detector interface{}
 }
 
 func main() {
 	a := app.New()
 	w := a.NewWindow("SmartSign™")
 
+	accidentModel := LoadAccidentDetectionModel()
+
 	app := &App{
 		Window:       w,
 		CurrentImage: &atomic.Value{},
 		StopCurrent:  make(chan bool),
+		Detector:     accidentModel,
 	}
 
 	SetupUI(app)

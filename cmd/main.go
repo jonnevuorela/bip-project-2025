@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	"sync/atomic"
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/widget"
+	"github.com/yalue/onnxruntime_go"
 	"gocv.io/x/gocv"
 )
 
@@ -16,6 +18,7 @@ import (
  * you should probably start from here.
  */
 type App struct {
+	// UI
 	Window        fyne.Window
 	MainContent   fyne.CanvasObject
 	ContentCanvas fyne.CanvasObject
@@ -23,23 +26,46 @@ type App struct {
 	VideoCanvas   *canvas.Raster
 	StatusLabel   *widget.Label
 	DeviceSelect  *widget.Select
-	DetailsText   *widget.Label
+	DataLabel     *widget.Label
+	DataBody      *widget.TextGrid
 
-	Video *gocv.VideoCapture
-
+	// Video
 	CurrentImage  *atomic.Value
 	StopCurrent   chan bool
 	CameraDevices []CameraDevice
+	Video         *gocv.VideoCapture
+
+	// Detection
+	Detector      *onnxruntime_go.Session[float32]
+	InputTensors  []*onnxruntime_go.Tensor[float32]
+	OutputTensors []*onnxruntime_go.Tensor[float32]
 }
 
 func main() {
+	envErr := onnxruntime_go.InitializeEnvironment()
+	if envErr != nil {
+		fmt.Printf("Error initializing onnx environment: %v", envErr)
+	}
+	defer onnxruntime_go.DestroyEnvironment()
+
 	a := app.New()
 	w := a.NewWindow("SmartSign™")
 
+	accidentDetector, inputTensors, outputTensors := LoadDetectionModel()
+	defer accidentDetector.Destroy()
+
 	app := &App{
-		Window:       w,
-		CurrentImage: &atomic.Value{},
-		StopCurrent:  make(chan bool),
+		Window:        w,
+		CurrentImage:  &atomic.Value{},
+		StopCurrent:   make(chan bool),
+		Detector:      accidentDetector,
+		InputTensors:  inputTensors,
+		OutputTensors: outputTensors,
+	}
+
+	detErr := app.Detector.Run()
+	if detErr != nil {
+		fmt.Printf("Error starting ONNX session: %v", detErr)
 	}
 
 	SetupUI(app)

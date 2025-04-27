@@ -2,11 +2,15 @@ package main
 
 import (
 	"fmt"
+	"image"
+	"image/color"
 	"os"
 	"os/exec"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/yalue/onnxruntime_go"
 	"gocv.io/x/gocv"
 )
 
@@ -16,6 +20,18 @@ type CameraDevice struct {
 	Path   string
 	Width  int
 	Height int
+}
+
+type Detection struct {
+	X1, Y1, X2, Y2 float32
+	Confidence     float32
+	Class          int
+}
+
+type ClassificationResult struct {
+	ClassID    int
+	ClassName  string
+	Confidence float32
 }
 
 /**
@@ -42,7 +58,6 @@ func FindVideoDevices() []string {
 
 /**
  * DetectCameras and save to the app state.
- * (or it should, but it gets stuck for now, even if it gets entries in devices)
  * @param *app
  */
 func DetectCameras(app *App) {
@@ -156,13 +171,167 @@ func startStream(app *App, deviceID int) {
 				if ok := cam.Read(&frame); ok && !frame.Empty() {
 					app.StatusLabel.SetText("jamming")
 					img, _ := frame.ToImage()
-					app.CurrentImage.Store(img)
+
+					if app.Detector != nil {
+						pImg := processVideoFeed(img, app)
+						app.DataLabel.SetText("jamming")
+						app.CurrentImage.Store(pImg)
+					} else {
+						app.DataLabel.SetText("No detection instance.")
+						app.CurrentImage.Store(img)
+					}
+
 					RefreshCanvas(app)
 				}
 				time.Sleep(33 * time.Millisecond) // ~30 FPS
 			}
 		}
 	}()
+}
+
+func processVideoFeed(img image.Image, app *App) image.Image {
+	if app.Detector == nil || len(app.InputTensors) == 0 || len(app.OutputTensors) == 0 {
+		return img
+	}
+
+	err := updateInputTensorWithImage(app.InputTensors[0], img)
+	if err != nil {
+		app.DataLabel.SetText(fmt.Sprintf("Error updating tensor: %v", err))
+		return img
+	}
+
+	err = app.Detector.Run()
+	if err != nil {
+		app.DataLabel.SetText(fmt.Sprintf("Error running model: %v", err))
+		return img
+	}
+
+	results := parseOutputTensor(app.OutputTensors[0])
+
+	annotatedImg := drawClassificationResults(img, results)
+
+	updateClassificationUI(app, results)
+
+	return annotatedImg
+}
+
+func updateInputTensorWithImage(tensor *onnxruntime_go.Tensor[float32], img image.Image) error {
+	size := 640
+	mat, err := gocv.ImageToMatRGBA(img)
+	if err != nil {
+		return fmt.Errorf("failed to convert image to Mat: %v", err)
+	}
+	defer mat.Close()
+
+	resized := gocv.NewMat()
+	defer resized.Close()
+	gocv.Resize(mat, &resized, image.Point{X: size, Y: size}, 0, 0, gocv.InterpolationLinear)
+
+	tensorData := tensor.GetData()
+
+	means := []float32{0.485, 0.456, 0.406}
+	stds := []float32{0.229, 0.224, 0.225}
+
+	for y := 0; y < size; y++ {
+		for x := 0; x < size; x++ {
+			pixel := resized.GetVecbAt(y, x)
+			idx := (y*size + x) * 3
+
+			r := float32(pixel[2]) / 255.0
+			g := float32(pixel[1]) / 255.0
+			b := float32(pixel[0]) / 255.0
+
+			tensorData[idx] = (r - means[0]) / stds[0]   // R
+			tensorData[idx+1] = (g - means[1]) / stds[1] // G
+			tensorData[idx+2] = (b - means[2]) / stds[2] // B
+		}
+	}
+
+	return nil
+}
+
+func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []ClassificationResult {
+	outputData := tensor.GetData()
+	results := []ClassificationResult{}
+	shape := tensor.GetShape()
+
+	fmt.Printf("Output tensor shape: %v\n", shape)
+	type IndexedScore struct {
+		index int
+		score float32
+	}
+
+	scores := make([]IndexedScore, len(outputData))
+	for i, score := range outputData {
+		scores[i] = IndexedScore{index: i, score: score}
+	}
+
+	sort.Slice(scores, func(i, j int) bool {
+		return scores[i].score > scores[j].score
+	})
+
+	for i := 0; i < 5 && i < len(scores); i++ {
+		results = append(results, ClassificationResult{
+			ClassID:    scores[i].index,
+			ClassName:  getClassName(scores[i].index),
+			Confidence: scores[i].score,
+		})
+	}
+
+	return results
+}
+
+func drawClassificationResults(img image.Image, results []ClassificationResult) image.Image {
+	mat, err := gocv.ImageToMatRGBA(img)
+	if err != nil {
+		return img
+	}
+	defer mat.Close()
+
+	gocv.Rectangle(&mat, image.Rect(10, 10, 350, 30+len(results)*20),
+		color.RGBA{0, 0, 0, 180}, -1)
+
+	gocv.PutText(&mat, "Classification Results:",
+		image.Point{15, 30}, gocv.FontHersheySimplex,
+		0.5, color.RGBA{255, 255, 255, 255}, 1)
+
+	for i, res := range results {
+		text := fmt.Sprintf("%s: %.2f%%", res.ClassName, res.Confidence*100)
+		gocv.PutText(&mat, text,
+			image.Point{15, 50 + i*20},
+			gocv.FontHersheySimplex, 0.5,
+			color.RGBA{255, 255, 255, 255}, 1)
+	}
+	imgDet, err := mat.ToImage()
+	if err != nil {
+		return img
+	} else {
+
+		return imgDet
+	}
+}
+
+func updateClassificationUI(app *App, results []ClassificationResult) {
+	var body strings.Builder
+
+	body.WriteString("Classification Results:\n\n")
+	for i, res := range results {
+		body.WriteString(fmt.Sprintf("%d. %s: %.2f%%\n",
+			i+1, res.ClassName, res.Confidence*100))
+	}
+
+	app.DataBody.SetText(body.String())
+	app.DataBody.Refresh()
+}
+func getClassName(classID int) string {
+	labels := map[int]string{
+		0: "accident",
+	}
+
+	if name, ok := labels[classID]; ok {
+		return name
+	}
+	return fmt.Sprintf("Class %d", classID)
 }
 
 /**

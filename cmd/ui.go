@@ -30,6 +30,9 @@ func SetupUI(app *App) {
 	app.StatusLabel = widget.NewLabel("Ready")
 	app.DeviceSelect = widget.NewSelect(nil, nil)
 
+	app.DataLabel = widget.NewLabel("")
+	app.DataBody = widget.NewTextGrid()
+
 	refreshBtn := widget.NewButton("Refresh Cameras", func() {
 		go DetectCameras(app)
 	})
@@ -42,6 +45,9 @@ func SetupUI(app *App) {
 	)
 	dataContainer := container.NewVBox(
 		widget.NewLabel("Data"),
+		app.DataLabel,
+		widget.NewSeparator(),
+		app.DataBody,
 	)
 
 	videoContainer := container.NewCenter(app.VideoCanvas)

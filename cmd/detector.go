@@ -32,7 +32,7 @@ type IndexedScore struct {
 }
 
 const (
-	ModelPath = "./models/best_yolo11n_bsz16.onnx"
+	ModelPath = "./models/yolo11n_mAP50-0697.onnx"
 )
 
 func LoadDetectionModel() (*onnxruntime_go.Session[float32], []*onnxruntime_go.Tensor[float32], []*onnxruntime_go.Tensor[float32]) {
@@ -170,8 +170,6 @@ func updateInputTensorWithImage(tensor *onnxruntime_go.Tensor[float32], img imag
 func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []DetectionResult {
 	outputData := tensor.GetData()
 	shape := tensor.GetShape()
-
-	fmt.Printf("Output tensor shape: %v\n", shape)
 
 	// adjustable thresholds for filtering detections
 	const confThreshold = 0.25

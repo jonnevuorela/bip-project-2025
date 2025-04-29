@@ -32,7 +32,7 @@ type IndexedScore struct {
 }
 
 const (
-	ModelPath = "./models/best.onnx"
+	ModelPath = "./models/best_yolo11n_bsz16.onnx"
 )
 
 func LoadDetectionModel() (*onnxruntime_go.Session[float32], []*onnxruntime_go.Tensor[float32], []*onnxruntime_go.Tensor[float32]) {

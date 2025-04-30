@@ -157,7 +157,7 @@ func startStream(app *App, deviceID int) {
 					img, _ := frame.ToImage()
 
 					if app.Detector != nil {
-						pImg := processVideoFeed(img, app)
+						pImg := app.processVideoFeed(img)
 						app.DataLabel.SetText("jamming")
 						app.CurrentImage.Store(pImg)
 					} else {

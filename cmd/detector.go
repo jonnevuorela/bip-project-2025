@@ -13,7 +13,7 @@ import (
 	"gocv.io/x/gocv"
 )
 
-type DetectionResult struct {
+type Detection struct {
 	ClassID    int
 	ClassName  string
 	Confidence float32
@@ -104,7 +104,7 @@ func createTensors[T onnxruntime_go.TensorData](infos []onnxruntime_go.InputOutp
  * @param image.Image, *App
  * @return image.Image
  */
-func processVideoFeed(img image.Image, app *App) image.Image {
+func (app *App) processVideoFeed(img image.Image) image.Image {
 	if app.Detector == nil || len(app.InputTensors) == 0 || len(app.OutputTensors) == 0 {
 		app.DataLabel.SetText("Model not properly loaded")
 		return img
@@ -124,7 +124,7 @@ func processVideoFeed(img image.Image, app *App) image.Image {
 		return img
 	}
 
-	results := parseOutputTensor(app.OutputTensors[0])
+	results := app.parseOutputTensor(app.OutputTensors[0])
 
 	annotatedImg := drawDetectionResults(img, results)
 
@@ -167,7 +167,7 @@ func updateInputTensorWithImage(tensor *onnxruntime_go.Tensor[float32], img imag
 
 	return nil
 }
-func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []DetectionResult {
+func (app *App) parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []Detection {
 	outputData := tensor.GetData()
 	shape := tensor.GetShape()
 
@@ -178,7 +178,7 @@ func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []DetectionResult
 	numDetections := int(shape[2])
 	numValues := int(shape[1])
 
-	var results []DetectionResult
+	var results []Detection
 
 	for i := 0; i < numDetections; i++ {
 		x := outputData[0*numDetections+i]
@@ -209,7 +209,7 @@ func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []DetectionResult
 		xMax := x + w/2
 		yMax := y + h/2
 
-		results = append(results, DetectionResult{
+		results = append(results, Detection{
 			ClassID:    classID,
 			ClassName:  getClassName(classID),
 			Confidence: maxProb,
@@ -222,12 +222,12 @@ func parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []DetectionResult
 		})
 	}
 
-	results = applyNMS(results, iouThreshold)
+	results = app.applyNMS(results, iouThreshold)
 
 	return results
 }
 
-func calculateIoU(box1, box2 BoundingBox) float32 {
+func (app *App) calculateIoU(box1, box2 BoundingBox) float32 {
 	xMin := max(box1.XMin, box2.XMin)
 	yMin := max(box1.YMin, box2.YMin)
 	xMax := min(box1.XMax, box2.XMax)
@@ -260,7 +260,7 @@ func max(a, b float32) float32 {
 	return b
 }
 
-func applyNMS(detections []DetectionResult, iouThreshold float32) []DetectionResult {
+func (app *App) applyNMS(detections []Detection, iouThreshold float32) []Detection {
 	if len(detections) == 0 {
 		return detections
 	}
@@ -269,7 +269,7 @@ func applyNMS(detections []DetectionResult, iouThreshold float32) []DetectionRes
 		return detections[i].Confidence > detections[j].Confidence
 	})
 
-	var result []DetectionResult
+	var result []Detection
 
 	result = append(result, detections[0])
 
@@ -278,7 +278,7 @@ func applyNMS(detections []DetectionResult, iouThreshold float32) []DetectionRes
 
 		for j := 0; j < len(result); j++ {
 			if detections[i].ClassID == result[j].ClassID {
-				iou := calculateIoU(detections[i].BBox, result[j].BBox)
+				iou := app.calculateIoU(detections[i].BBox, result[j].BBox)
 
 				if iou > iouThreshold {
 					keep = false
@@ -292,6 +292,7 @@ func applyNMS(detections []DetectionResult, iouThreshold float32) []DetectionRes
 		}
 	}
 
+	app.Detections = result
 	return result
 }
 func getClassName(classID int) string {
@@ -306,7 +307,7 @@ func getClassName(classID int) string {
 	return fmt.Sprintf("Class %d", classID)
 }
 
-func drawDetectionResults(img image.Image, results []DetectionResult) image.Image {
+func drawDetectionResults(img image.Image, results []Detection) image.Image {
 	mat, err := gocv.ImageToMatRGBA(img)
 	if err != nil {
 		return img
@@ -355,7 +356,7 @@ func drawDetectionResults(img image.Image, results []DetectionResult) image.Imag
 	return imgDet
 }
 
-func updateClassificationUI(app *App, results []DetectionResult) {
+func updateClassificationUI(app *App, results []Detection) {
 	var body strings.Builder
 
 	classCounts := make(map[string]int)

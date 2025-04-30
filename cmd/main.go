@@ -39,6 +39,7 @@ type App struct {
 	Detector      *onnxruntime_go.Session[float32]
 	InputTensors  []*onnxruntime_go.Tensor[float32]
 	OutputTensors []*onnxruntime_go.Tensor[float32]
+	Detections    []Detection
 }
 
 func main() {

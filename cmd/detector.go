@@ -26,10 +26,6 @@ type BoundingBox struct {
 	XMax float32
 	YMax float32
 }
-type IndexedScore struct {
-	index int
-	score float32
-}
 
 const (
 	ModelPath = "./models/yolo11n_mAP50-0697.onnx"
@@ -172,8 +168,8 @@ func (app *App) parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []Dete
 	shape := tensor.GetShape()
 
 	// adjustable thresholds for filtering detections
-	const confThreshold = 0.25
 	const iouThreshold = 0.45
+	var confThreshold float32
 
 	numDetections := int(shape[2])
 	numValues := int(shape[1])
@@ -194,9 +190,14 @@ func (app *App) parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []Dete
 		classID := 0
 		maxProb := classProbabilities[0]
 		for c := 1; c < len(classProbabilities); c++ {
+			// set thershold high for default case (accident)
+			confThreshold = 0.50
+
 			if classProbabilities[c] > maxProb {
 				maxProb = classProbabilities[c]
 				classID = c
+				// lower if class is vehicle
+				confThreshold = 0.25
 			}
 		}
 

@@ -191,7 +191,7 @@ func (app *App) parseOutputTensor(tensor *onnxruntime_go.Tensor[float32]) []Dete
 		maxProb := classProbabilities[0]
 		for c := 1; c < len(classProbabilities); c++ {
 			// set thershold high for default case (accident)
-			confThreshold = 0.50
+			confThreshold = 0.25
 
 			if classProbabilities[c] > maxProb {
 				maxProb = classProbabilities[c]
@@ -383,8 +383,35 @@ func updateClassificationUI(app *App, results []Detection) {
 		body.WriteString(fmt.Sprintf("%d. %s: %.1f%% [%.0f,%.0f,%.0f,%.0f]\n",
 			i+1, res.ClassName, res.Confidence*100,
 			res.BBox.XMin, res.BBox.YMin, res.BBox.XMax, res.BBox.YMax))
+
+	}
+
+	if searchAccident(results) {
+
+		speedSign.File = "./FyneTest/50Speed.png" // Switch to new image
+		warningSign.File = "./FyneTest/WarningAccident.png"
+		speedSign.Refresh() // Force UI refresh
+		warningSign.Refresh()
+
+	} else {
+
+		speedSign.File = "./FyneTest/100Speed.png" // Switch back
+		warningSign.File = "./FyneTest/Blank.png"
+		speedSign.Refresh()
+		warningSign.Refresh()
 	}
 
 	app.DataBody.SetText(body.String())
 	app.DataBody.Refresh()
+}
+func searchAccident(results []Detection) bool {
+	for i := 0; i < len(results); i++ {
+		if results[i].ClassName == "accident" && results[i].Confidence > 0.5 {
+
+			return true
+		} else {
+			continue
+		}
+	}
+	return false
 }

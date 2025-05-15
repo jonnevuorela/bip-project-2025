@@ -6,8 +6,13 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
+
+var speedSign *canvas.Image
+
+var warningSign *canvas.Image
 
 /**
  * UI setup function called externally from main function.
@@ -26,6 +31,12 @@ func SetupUI(app *App) {
 	})
 
 	app.VideoCanvas.SetMinSize(fyne.NewSize(float32(videoWidth), float32(float32(videoWidth)/aspectRatio)))
+
+	speedSign = canvas.NewImageFromFile("./FyneTest/100Speed.png")
+	speedSign.FillMode = canvas.ImageFillContain
+
+	warningSign = canvas.NewImageFromFile("./FyneTest/Blank.png")
+	warningSign.FillMode = canvas.ImageFillContain
 
 	app.StatusLabel = widget.NewLabel("Ready")
 	app.DeviceSelect = widget.NewSelect(nil, nil)
@@ -59,7 +70,11 @@ func SetupUI(app *App) {
 	app.Window.Resize(fyne.NewSize(1280, 720))
 	app.Window.SetFixedSize(false)
 
-	app.Window.SetContent(split)
+	tabs := container.NewAppTabs(
+		container.NewTabItem("Signs", container.New(layout.NewGridLayout(3), speedSign, warningSign)),
+		container.NewTabItem("Debug", split),
+	)
+	app.Window.SetContent(tabs)
 }
 
 func UpdateDeviceList(app *App) {

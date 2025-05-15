@@ -1,0 +1,53 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36" version="27.0.2">
+  <diagram name="Pagina-1" id="pLMQxYtYHDT-WoBm7KbR">
+    <mxGraphModel dx="865" dy="451" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-13" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-2" target="gOzWwmSiV0_BP6L1e8d4-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-2" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Sign&lt;/font&gt;&lt;div&gt;&lt;font style=&quot;font-size: 20px;&quot;&gt;State Machine&lt;/font&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="305" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-3" value="&lt;font style=&quot;font-size: 36px;&quot;&gt;SMART STREET SIGN&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="275" y="260" width="300" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-14" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-4" target="gOzWwmSiV0_BP6L1e8d4-3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-4" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;Accident Sign State Machine&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="300" width="170" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-8" target="gOzWwmSiV0_BP6L1e8d4-2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-8" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Yolov8&lt;br&gt;AI Model&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="30" y="160" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-15" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-9" target="gOzWwmSiV0_BP6L1e8d4-4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-9" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;JETSON ONNX&lt;br&gt;AI Model&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="160" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-17" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-10" target="gOzWwmSiV0_BP6L1e8d4-9">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="510" y="210" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-10" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;JETSON ORIN NANO&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="425" y="20" width="170" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-16" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="gOzWwmSiV0_BP6L1e8d4-11" target="gOzWwmSiV0_BP6L1e8d4-9">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="gOzWwmSiV0_BP6L1e8d4-11" value="&lt;span style=&quot;font-size: 20px;&quot;&gt;Digital Twin&lt;br&gt;Road Condition&lt;br&gt;&quot;Crash&quot;&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="650" y="20" width="170" height="90" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
